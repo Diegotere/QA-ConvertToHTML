@@ -1,0 +1,28 @@
+{
+  "name": "qa-convert-to-html",
+  "version": "1.0.0",
+  "description": "Converte documentos de teste QA (.docx) em HTML corporativo com CSS inline, pronto para colar em sistemas que sanitizam CSS.",
+  "bin": {
+    "qa-convert-to-html": "./bin/cli.js"
+  },
+  "keywords": [
+    "qa",
+    "testing",
+    "docx",
+    "html",
+    "converter",
+    "kiro",
+    "inline-css"
+  ],
+  "author": "Diegotere",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Diegotere/QA-ConvertToHTML.git"
+  },
+  "files": [
+    "bin/",
+    "templates/",
+    "README.md"
+  ]
+}
