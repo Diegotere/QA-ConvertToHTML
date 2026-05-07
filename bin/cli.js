@@ -86,9 +86,9 @@ function install() {
   const readmeDest = path.join(convertDir, 'README.md')
   if (!fs.existsSync(readmeDest)) {
     fs.copyFileSync(readmeSrc, readmeDest)
-    log('✓ CONVERTIDOS-HTML/README.md instalado', 'green')
+    log('✓ CONVERT-HTML/README.md instalado', 'green')
   } else {
-    log('• CONVERTIDOS-HTML/README.md já existe', 'yellow')
+    log('• CONVERT-HTML/README.md já existe', 'yellow')
   }
 
   // 5. Instalar mammoth como dependência
@@ -106,7 +106,7 @@ function install() {
   log('║   Instalação concluída!                  ║', 'green')
   log('╚══════════════════════════════════════════╝', 'green')
   log('\nComo usar:', 'bold')
-  log('  1. Coloque os .docx em CONVERTIDOS-HTML/')
+  log('  1. Coloque os .docx em CONVERT-HTML/ que foi criada na raiz do seu projeto')
   log('  2. No Kiro: ative #qa-html-converter e digite /QAhtml')
   log('  3. Ou rode: node scripts/convert-all-docx.js\n')
 }
