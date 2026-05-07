@@ -5,7 +5,7 @@
 const fs = require('fs')
 const path = require('path')
 
-const DIR = path.resolve(__dirname, '..', 'CONVERTIDOS-HTML')
+const DIR = path.resolve(__dirname, '..', 'Convert-html')
 const files = fs.readdirSync(DIR).filter(f => f.endsWith('.html'))
 
 if (files.length === 0) {

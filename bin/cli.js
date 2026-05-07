@@ -81,7 +81,7 @@ function install() {
     }
   }
 
-  // 4. Copiar README na pasta CONVERTIDOS-HTML
+  // 4. Copiar README na pasta Convert-html
   const readmeSrc = path.join(templatesDir, 'README.md')
   const readmeDest = path.join(convertDir, 'README.md')
   if (!fs.existsSync(readmeDest)) {
@@ -106,7 +106,7 @@ function install() {
   log('║   Instalação concluída!                  ║', 'green')
   log('╚══════════════════════════════════════════╝', 'green')
   log('\nComo usar:', 'bold')
-  log('  1. Coloque os .docx em CONVERT-HTML/ que foi criada na raiz do seu projeto')
+  log('  1. Coloque os .docx em Convert-html/ que foi criada na raiz do seu projeto')
   log('  2. No Kiro: ative #qa-html-converter e digite /QAhtml')
   log('  3. Ou rode: node scripts/convert-all-docx.js\n')
 }

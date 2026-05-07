@@ -1,5 +1,5 @@
 /**
- * Converte TODOS os .docx em CONVERTIDOS-HTML/ para .html com imagens base64.
+ * Converte TODOS os .docx em Convert-html/ para .html com imagens base64.
  * Uso: node scripts/convert-all-docx.js
  * 
  * Features:
@@ -13,7 +13,7 @@ const mammoth = require('mammoth')
 const fs = require('fs')
 const path = require('path')
 
-const DIR = path.resolve(__dirname, '..', 'CONVERTIDOS-HTML')
+const DIR = path.resolve(__dirname, '..', 'Convert-html')
 
 /**
  * Identifica rows de cabecalho e aplica classe CSS.
@@ -335,7 +335,7 @@ async function main() {
   const files = fs.readdirSync(DIR).filter(f => f.toLowerCase().endsWith('.docx'))
 
   if (files.length === 0) {
-    console.log('Nenhum .docx encontrado em CONVERTIDOS-HTML/')
+    console.log('Nenhum .docx encontrado em Convert-html/')
     return
   }
 
