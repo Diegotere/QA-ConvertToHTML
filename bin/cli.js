@@ -111,6 +111,49 @@ function install() {
   log('  3. Ou rode: node scripts/convert-all-docx.js\n')
 }
 
+function update() {
+  log('\n╔══════════════════════════════════════════╗', 'blue')
+  log('║   QA Convert to HTML - Atualizador       ║', 'blue')
+  log('╚══════════════════════════════════════════╝\n', 'blue')
+
+  const templatesDir = path.join(__dirname, '..', 'templates')
+
+  // 1. Atualizar scripts (sobrescreve)
+  const scriptsDir = path.join(cwd, 'scripts')
+  if (!fs.existsSync(scriptsDir)) fs.mkdirSync(scriptsDir, { recursive: true })
+
+  const scriptsSrc = path.join(templatesDir, 'scripts')
+  const scriptFiles = fs.readdirSync(scriptsSrc)
+  for (const file of scriptFiles) {
+    fs.copyFileSync(path.join(scriptsSrc, file), path.join(scriptsDir, file))
+    log(`✓ scripts/${file} atualizado`, 'green')
+  }
+
+  // 2. Atualizar skill do Kiro (sobrescreve)
+  const skillDir = path.join(cwd, '.kiro', 'skills', 'qa-html-converter')
+  if (!fs.existsSync(skillDir)) fs.mkdirSync(skillDir, { recursive: true })
+
+  const skillSrc = path.join(templatesDir, 'skill')
+  const skillFiles = fs.readdirSync(skillSrc)
+  for (const file of skillFiles) {
+    fs.copyFileSync(path.join(skillSrc, file), path.join(skillDir, file))
+    log(`✓ .kiro/skills/qa-html-converter/${file} atualizado`, 'green')
+  }
+
+  // 3. Atualizar README na pasta Convert-html (sobrescreve)
+  const convertDir = path.join(cwd, 'Convert-html')
+  if (!fs.existsSync(convertDir)) fs.mkdirSync(convertDir, { recursive: true })
+  const readmeSrc = path.join(templatesDir, 'README.md')
+  fs.copyFileSync(readmeSrc, path.join(convertDir, 'README.md'))
+  log('✓ Convert-html/README.md atualizado', 'green')
+
+  // Resumo
+  log('\n╔══════════════════════════════════════════╗', 'green')
+  log('║   Atualização concluída!                 ║', 'green')
+  log('╚══════════════════════════════════════════╝', 'green')
+  log('\nTodos os scripts e skills foram atualizados para a versão mais recente.\n')
+}
+
 function convert() {
   log('\n🔄 Convertendo documentos...\n', 'blue')
   const scriptPath = path.join(cwd, 'scripts', 'convert-all-docx.js')
@@ -147,6 +190,9 @@ switch (command) {
   case 'install':
     install()
     break
+  case 'update':
+    update()
+    break
   case 'convert':
     convert()
     break
@@ -158,6 +204,7 @@ switch (command) {
     log('─────────────────────────────')
     log('\nComandos disponíveis:')
     log('  npx qa-convert-to-html install   → Instala scripts, skills e pastas')
+    log('  npx qa-convert-to-html update    → Atualiza scripts e skills (sobrescreve)')
     log('  npx qa-convert-to-html convert   → Converte todos os .docx e .md')
     log('  npx qa-convert-to-html validate  → Valida os HTMLs gerados\n')
     break
