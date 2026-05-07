@@ -11,7 +11,7 @@ npx qa-convert-to-html install
 ```
 
 Isso cria no seu projeto:
-- `CONVERTIDOS-HTML/` — pasta para colocar os .docx e receber os .html
+- `CONVERT-HTML/` — pasta para colocar os .docx e receber os .html
 - `scripts/convert-all-docx.js` — script de conversão
 - `scripts/validate-html.js` — script de validação
 - `.kiro/skills/qa-html-converter/SKILL.md` — skill para uso no Kiro IDE
@@ -21,7 +21,7 @@ Isso cria no seu projeto:
 ### Via npx
 
 ```bash
-# Converter todos os .docx da pasta CONVERTIDOS-HTML/
+# Converter todos os .docx da pasta CONVERT-HTML/
 npx qa-convert-to-html convert
 
 # Validar os HTMLs gerados
