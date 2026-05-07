@@ -86,19 +86,19 @@ function install() {
   const readmeDest = path.join(convertDir, 'README.md')
   if (!fs.existsSync(readmeDest)) {
     fs.copyFileSync(readmeSrc, readmeDest)
-    log('✓ CONVERT-HTML/README.md instalado', 'green')
+    log('✓ Convert-html/README.md instalado', 'green')
   } else {
-    log('• CONVERT-HTML/README.md já existe', 'yellow')
+    log('• Convert-html/README.md já existe', 'yellow')
   }
 
-  // 5. Instalar mammoth como dependência
-  log('\n📦 Instalando dependência mammoth...', 'blue')
+  // 5. Instalar mammoth e marked como dependências
+  log('\n📦 Instalando dependências (mammoth + marked)...', 'blue')
   const { execSync } = require('child_process')
   try {
-    execSync('npm install mammoth --save-dev', { cwd, stdio: 'pipe' })
-    log('✓ mammoth instalado', 'green')
+    execSync('npm install mammoth marked --save-dev', { cwd, stdio: 'pipe' })
+    log('✓ mammoth e marked instalados', 'green')
   } catch (e) {
-    log('⚠ Falha ao instalar mammoth. Rode manualmente: npm install mammoth', 'red')
+    log('⚠ Falha ao instalar dependências. Rode manualmente: npm install mammoth marked', 'red')
   }
 
   // Resumo
@@ -106,7 +106,7 @@ function install() {
   log('║   Instalação concluída!                  ║', 'green')
   log('╚══════════════════════════════════════════╝', 'green')
   log('\nComo usar:', 'bold')
-  log('  1. Coloque os .docx em Convert-html/ que foi criada na raiz do seu projeto')
+  log('  1. Coloque os .docx ou .md em Convert-html/')
   log('  2. No Kiro: ative #qa-html-converter e digite /QAhtml')
   log('  3. Ou rode: node scripts/convert-all-docx.js\n')
 }
@@ -158,7 +158,7 @@ switch (command) {
     log('─────────────────────────────')
     log('\nComandos disponíveis:')
     log('  npx qa-convert-to-html install   → Instala scripts, skills e pastas')
-    log('  npx qa-convert-to-html convert   → Converte todos os .docx')
+    log('  npx qa-convert-to-html convert   → Converte todos os .docx e .md')
     log('  npx qa-convert-to-html validate  → Valida os HTMLs gerados\n')
     break
 }

@@ -1,8 +1,9 @@
 /**
- * Converte TODOS os .docx em Convert-html/ para .html com imagens base64.
+ * Converte TODOS os .docx e .md em Convert-html/ para .html com imagens base64.
  * Uso: node scripts/convert-all-docx.js
  * 
  * Features:
+ * - Suporta .docx (mammoth) e .md (marked)
  * - Imagens embutidas como base64 (arquivo unico, sem dependencias)
  * - Status automatico: Sim→PASSOU, Nao→FALHOU, Melhoria→MELHORIA
  * - Cabecalho das tabelas com cor customizada (apenas rows de header)
@@ -12,6 +13,13 @@
 const mammoth = require('mammoth')
 const fs = require('fs')
 const path = require('path')
+
+let marked
+try {
+  marked = require('marked')
+} catch (e) {
+  // marked e opcional — so necessario para .md
+}
 
 const DIR = path.resolve(__dirname, '..', 'Convert-html')
 
@@ -326,24 +334,82 @@ ${processedContent}
   }
 }
 
+async function convertMdFile(inputPath) {
+  if (!marked) {
+    console.error('  ERRO: pacote "marked" nao instalado. Rode: npm install marked')
+    return
+  }
+
+  const outputPath = inputPath.replace(/\.md$/i, '.html')
+  const mdContent = fs.readFileSync(inputPath, 'utf8')
+
+  // Converter Markdown para HTML
+  let htmlContent = marked.parse(mdContent)
+
+  // Processar tabelas (status badges)
+  htmlContent = processAllTables(htmlContent)
+
+  // Converter primeiro h1 ou paragrafo em titulo estilizado
+  // Se o markdown ja gerou <h1>, manter; senao converter primeiro <p>
+  if (!/<h1/.test(htmlContent)) {
+    htmlContent = htmlContent.replace(
+      /^(<p[^>]*>)([\s\S]*?)(<\/p>)/i,
+      function(match, open, content, close) {
+        return `<h1>${content}</h1>`
+      }
+    )
+  }
+
+  // Aplicar estilos inline
+  htmlContent = applyInlineStyles(htmlContent)
+
+  const title = path.basename(inputPath, '.md')
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${title}</title>
+</head>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;margin:0;padding:40px 20px;color:#333;line-height:1.6;background:#f5f7fb;">
+<div style="max-width:1100px;margin:0 auto;background:#fff;padding:40px 50px;border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+${htmlContent}
+</div>
+</body>
+</html>`
+
+  fs.writeFileSync(outputPath, html, 'utf8')
+  console.log(`OK: ${path.basename(outputPath)}`)
+}
+
 async function main() {
   if (!fs.existsSync(DIR)) {
     console.error(`Pasta nao encontrada: ${DIR}`)
     process.exit(1)
   }
 
-  const files = fs.readdirSync(DIR).filter(f => f.toLowerCase().endsWith('.docx'))
+  const docxFiles = fs.readdirSync(DIR).filter(f => f.toLowerCase().endsWith('.docx'))
+  const mdFiles = fs.readdirSync(DIR).filter(f => f.toLowerCase().endsWith('.md') && f !== 'README.md')
+  const total = docxFiles.length + mdFiles.length
 
-  if (files.length === 0) {
-    console.log('Nenhum .docx encontrado em Convert-html/')
+  if (total === 0) {
+    console.log('Nenhum .docx ou .md encontrado em Convert-html/')
     return
   }
 
-  console.log(`Encontrados ${files.length} arquivo(s) .docx\n`)
+  console.log(`Encontrados ${total} arquivo(s) (${docxFiles.length} .docx, ${mdFiles.length} .md)\n`)
 
-  for (const file of files) {
+  for (const file of docxFiles) {
     try {
       await convertFile(path.join(DIR, file))
+    } catch (err) {
+      console.error(`ERRO em ${file}: ${err.message}`)
+    }
+  }
+
+  for (const file of mdFiles) {
+    try {
+      await convertMdFile(path.join(DIR, file))
     } catch (err) {
       console.error(`ERRO em ${file}: ${err.message}`)
     }

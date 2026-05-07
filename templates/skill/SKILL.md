@@ -16,7 +16,7 @@ cmd /c "node -e \"try{require('mammoth');console.log('OK')}catch(e){console.log(
 - Se retornar "OK": prosseguir
 
 ### 2. Verificar pasta de entrada
-- Verificar se a pasta `CONVERT-HTML/` existe na raiz do workspace
+- Verificar se a pasta `Convert-html/` existe na raiz do workspace
 - Se não existir: criar a pasta e informar ao usuário para colocar os .docx lá
 - Se existir: verificar se há arquivos .docx dentro
 - Se não houver .docx: informar ao usuário para colocar os arquivos e aguardar
@@ -43,7 +43,7 @@ cmd /c "node scripts/validate-html.js"
 Informar ao usuário:
 - Quantos arquivos foram convertidos
 - Se a validação passou
-- Onde estão os HTMLs gerados (`CONVERT-HTML/`)
+- Onde estão os HTMLs gerados (`Convert-html/`)
 
 ---
 
