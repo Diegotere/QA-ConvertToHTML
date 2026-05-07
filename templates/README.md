@@ -4,7 +4,7 @@ Ferramenta para converter documentos de teste (.docx) em HTML corporativo com es
 
 ## Início Rápido
 
-1. Coloque os arquivos `.docx` nesta pasta (`CONVERTIDOS-HTML/`)
+1. Coloque os arquivos `.docx` nesta pasta (`CONVERT-HTML/`)
 2. No Kiro: ative `#qa-html-converter` e digite `/QAhtml`
 3. Ou rode: `node scripts/convert-all-docx.js`
 
