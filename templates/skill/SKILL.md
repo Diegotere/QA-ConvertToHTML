@@ -1,7 +1,5 @@
 ---
-inclusion: auto
-name: convert-alldocs-to-html
-description: Realiza a conversão de documentos para HTML quando digitado o /QAhtml.
+inclusion: manual
 ---
 
 # QA Document to Corporate HTML Converter

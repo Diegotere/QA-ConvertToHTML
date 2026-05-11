@@ -23,6 +23,12 @@ try {
 
 const DIR = path.resolve(__dirname, '..', 'Convert-html')
 
+// Cor do cabecalho pode ser passada como argumento: node convert-all-docx.js --header-color=#1a365d
+const HEADER_COLOR = (function() {
+  const arg = process.argv.find(a => a.startsWith('--header-color='))
+  return arg ? arg.split('=')[1] : '#2c3e50'
+})()
+
 /**
  * Identifica rows de cabecalho e aplica classe CSS.
  * Tambem aplica badges de status na coluna correta.
@@ -191,6 +197,270 @@ function processTable(tableHtml) {
 }
 
 /**
+ * Detecta blocos de lista com marcadores fora de tabelas em HTML gerado pelo mammoth (.docx).
+ * 
+ * O mammoth NAO gera <ul>/<li> — converte listas como:
+ *   <p>- item 1</p>
+ *   <p>- item 2</p>
+ * Ou como um unico <p> com <br />- item1<br />- item2
+ * 
+ * Esta funcao detecta esses padroes e agrupa com o titulo anterior
+ * em cards coloridos com borda lateral, conforme o tipo de secao.
+ * 
+ * Regras de cor:
+ * - Melhorias / Sugestoes → borda laranja (#e67e22), fundo amarelo claro (#fef9e7)
+ * - Informacoes adicionais / Observacoes / Notas → borda verde (#27ae60), fundo verde claro (#eafaf1)
+ * - Problemas / Erros / Falhas → borda vermelha (#e74c3c), fundo vermelho claro (#fdedec)
+ * - Requisitos / Pre-condicoes / Ambiente → borda azul (#3498db), fundo azul claro (#ebf5fb)
+ * - Outros (sem match) → borda cinza (#7f8c8d), fundo cinza claro (#f4f6f7)
+ * 
+ * NAO altera tabelas nem conteudo que ja esteja dentro de tabelas.
+ * Usado APENAS no pipeline de .docx (mammoth).
+ */
+function processListBlocksDocx(html) {
+  const SECTION_STYLES = [
+    {
+      keywords: /melhoria|sugest[aã]o|sugest[oõ]es|improvement|aprimoramento/i,
+      borderColor: '#e67e22',
+      bgColor: '#fef9e7'
+    },
+    {
+      keywords: /informa[cç][aã]o|informa[cç][oõ]es\s*adicionais|observa[cç][aã]o|observa[cç][oõ]es|nota[s]?$|adicional|complementar/i,
+      borderColor: '#27ae60',
+      bgColor: '#eafaf1'
+    },
+    {
+      keywords: /problema|erro|falha|bug|incidente|cr[ií]tico|bloqueio/i,
+      borderColor: '#e74c3c',
+      bgColor: '#fdedec'
+    },
+    {
+      keywords: /requisito|pr[eé]-condi[cç][aã]o|depend[eê]ncia|ambiente|configura[cç][aã]o/i,
+      borderColor: '#3498db',
+      bgColor: '#ebf5fb'
+    }
+  ]
+
+  const DEFAULT_STYLE = { borderColor: '#7f8c8d', bgColor: '#f4f6f7' }
+
+  function getStyleForTitle(titleText) {
+    for (const s of SECTION_STYLES) {
+      if (s.keywords.test(titleText)) return s
+    }
+    return DEFAULT_STYLE
+  }
+
+  // Dividir HTML em segmentos: dentro-de-tabela vs fora-de-tabela
+  const segments = []
+  let lastIdx = 0
+  const tableRegex = /<table[^>]*>[\s\S]*?<\/table>/gi
+  let tableMatch
+
+  while ((tableMatch = tableRegex.exec(html)) !== null) {
+    if (tableMatch.index > lastIdx) {
+      segments.push({ type: 'content', text: html.substring(lastIdx, tableMatch.index) })
+    }
+    segments.push({ type: 'table', text: tableMatch[0] })
+    lastIdx = tableMatch.index + tableMatch[0].length
+  }
+  if (lastIdx < html.length) {
+    segments.push({ type: 'content', text: html.substring(lastIdx) })
+  }
+
+  // Processar apenas segmentos fora de tabelas
+  const processedSegments = segments.map(seg => {
+    if (seg.type === 'table') return seg.text
+    return groupBulletParagraphs(seg.text, getStyleForTitle)
+  })
+
+  return processedSegments.join('')
+}
+
+/**
+ * Agrupa paragrafos consecutivos com marcadores (- ou •) em blocos coloridos.
+ * Detecta o titulo anterior (p>strong ou h1-h4) e usa para classificar a cor.
+ */
+function groupBulletParagraphs(html, getStyleForTitle) {
+  // Separar em elementos individuais (tags de nivel de bloco)
+  // Regex para capturar cada elemento de bloco: <p>...</p>, <h1>...</h1>, <ul>...</ul>, etc.
+  const blockPattern = /<(?:p|h[1-6]|div|blockquote|ul|ol)[^>]*>[\s\S]*?<\/(?:p|h[1-6]|div|blockquote|ul|ol)>/gi
+  const elements = []
+  let lastEnd = 0
+  let m
+
+  while ((m = blockPattern.exec(html)) !== null) {
+    if (m.index > lastEnd) {
+      elements.push({ type: 'raw', html: html.substring(lastEnd, m.index) })
+    }
+    elements.push({ type: 'block', html: m[0], index: m.index })
+    lastEnd = m.index + m[0].length
+  }
+  if (lastEnd < html.length) {
+    elements.push({ type: 'raw', html: html.substring(lastEnd) })
+  }
+
+  if (elements.length === 0) return html
+
+  // Classificar cada elemento de bloco
+  for (const el of elements) {
+    if (el.type !== 'block') continue
+    const text = el.html.replace(/<[^>]*>/g, '').trim()
+
+    // E uma lista <ul> ou <ol>? (gerada pelo mammoth em alguns .docx)
+    const isListElement = /^<(?:ul|ol)/i.test(el.html)
+
+    // E um paragrafo com marcador? (comeca com - ou • ou tem <br/>- padrao)
+    const isBulletPara = /^[-•●▪]\s/.test(text) || /^<p[^>]*>\s*[-•●▪]\s/i.test(el.html)
+    // E um paragrafo com multiplos itens separados por <br/> com marcadores?
+    const hasMultiBullets = (el.html.match(/<br\s*\/?>\s*[-•●▪]\s/gi) || []).length >= 1
+
+    el.isBullet = isBulletPara || hasMultiBullets || isListElement
+    el.isListElement = isListElement
+
+    // E um titulo? (h1-h4 ou p>strong sem marcador)
+    const isHeading = /^<h[1-4]/i.test(el.html)
+    const isStrongPara = /^<p[^>]*>\s*<strong/i.test(el.html) && !el.isBullet
+    el.isTitle = isHeading || isStrongPara
+    el.titleText = el.isTitle ? text : ''
+  }
+
+  // Agrupar: encontrar sequencias de [titulo?] + [bullet paragrafos consecutivos]
+  const result = []
+  let i = 0
+
+  while (i < elements.length) {
+    const el = elements[i]
+
+    if (el.type === 'block' && el.isBullet) {
+      // Encontrou um paragrafo com marcador — buscar titulo anterior
+      let titleEl = null
+      let titleIdx = -1
+
+      // Olhar para tras para encontrar o titulo mais proximo (max 3 elementos atras)
+      for (let back = i - 1; back >= Math.max(0, i - 3); back--) {
+        if (elements[back].type === 'block' && elements[back].isTitle) {
+          titleEl = elements[back]
+          titleIdx = back
+          break
+        }
+        // Se encontrar outro bloco que nao e raw/whitespace, parar
+        if (elements[back].type === 'block' && !elements[back].isTitle) {
+          const backText = elements[back].html.replace(/<[^>]*>/g, '').trim()
+          if (backText && !(/^(<br\s*\/?>|\s)*$/.test(elements[back].html))) break
+        }
+      }
+
+      // Coletar todos os bullet paragrafos consecutivos
+      const bulletEls = []
+      let j = i
+      while (j < elements.length) {
+        if (elements[j].type === 'block' && elements[j].isBullet) {
+          bulletEls.push(elements[j])
+          j++
+        } else if (elements[j].type === 'raw' && /^\s*$/.test(elements[j].html)) {
+          j++ // Pular whitespace entre bullets
+        } else if (elements[j].type === 'block' && /^<p[^>]*>\s*(<br\s*\/?>)?\s*<\/p>$/i.test(elements[j].html)) {
+          j++ // Pular paragrafos vazios entre bullets
+        } else {
+          break
+        }
+      }
+
+      // Determinar estilo baseado no titulo
+      const titleText = titleEl ? titleEl.titleText : ''
+      const style = getStyleForTitle(titleText)
+
+      // Se encontrou titulo, remover do result (ja foi adicionado) e incluir no bloco
+      if (titleEl && titleIdx >= 0) {
+        // Remover o titulo do result se ja foi adicionado
+        const titleHtmlToRemove = titleEl.html
+        const removeIdx = result.lastIndexOf(titleHtmlToRemove)
+        if (removeIdx >= 0) {
+          result.splice(removeIdx, 1)
+        }
+      }
+
+      // Converter bullets em <ul><li> para melhor semantica
+      const listItems = []
+      let hasExistingList = false
+      let existingListHtml = ''
+      for (const bel of bulletEls) {
+        // Se ja e um <ul> ou <ol>, preservar como esta
+        if (bel.isListElement) {
+          hasExistingList = true
+          existingListHtml += bel.html
+        } else {
+          // Extrair texto dos bullets — pode ser um <p> com um item ou com multiplos via <br/>
+          let content = bel.html
+            .replace(/^<p[^>]*>/i, '')
+            .replace(/<\/p>$/i, '')
+
+          // Separar por <br/> se tiver multiplos itens
+          const parts = content.split(/<br\s*\/?>/i)
+          for (const part of parts) {
+            const cleaned = part.replace(/^\s*[-•●▪]\s*/, '').trim()
+            if (cleaned) {
+              listItems.push(cleaned)
+            }
+          }
+        }
+      }
+
+      // Montar o bloco
+      const titleHtml = titleEl ? titleEl.html : ''
+      let listHtml = ''
+      if (hasExistingList) {
+        listHtml = existingListHtml
+      }
+      if (listItems.length > 0) {
+        listHtml += '<ul>' + listItems.map(item => `<li>${item}</li>`).join('') + '</ul>'
+      }
+      const blockHtml = `<div data-list-block="true" data-border-color="${style.borderColor}" data-bg-color="${style.bgColor}">${titleHtml}${listHtml}</div>`
+
+      result.push(blockHtml)
+      i = j
+      continue
+    }
+
+    result.push(el.html)
+    i++
+  }
+
+  return result.join('')
+}
+
+/**
+ * Aplica estilos inline nos blocos de lista gerados por processListBlocks().
+ * Roda DENTRO de applyInlineStyles para manter a ordem correta.
+ */
+function applyListBlockStyles(html) {
+  // Converter data-list-block divs em divs com estilo inline
+  html = html.replace(/<div data-list-block="true" data-border-color="([^"]*)" data-bg-color="([^"]*)">/gi,
+    function(match, borderColor, bgColor) {
+      return `<div style="margin:20px 0;padding:16px 20px;border-left:5px solid ${borderColor};background:${bgColor};border-radius:0 8px 8px 0;">`
+    }
+  )
+
+  // Estilizar <ul> e <ol> dentro dos blocos de lista (sem bullets padrao, com marcadores customizados)
+  // Aplicar estilo nas listas que estao logo apos o bloco
+  html = html.replace(/(<div style="margin:20px 0;padding:16px 20px;border-left:5px solid[^"]*;background:[^"]*;border-radius:0 8px 8px 0;">)([\s\S]*?)(<\/div>)/gi,
+    function(match, openDiv, content, closeDiv) {
+      // Estilizar ul/ol dentro do bloco
+      content = content.replace(/<ul(?![^>]*style=)([^>]*)>/gi,
+        '<ul$1 style="margin:8px 0 0 0;padding-left:20px;list-style-type:disc;">')
+      content = content.replace(/<ol(?![^>]*style=)([^>]*)>/gi,
+        '<ol$1 style="margin:8px 0 0 0;padding-left:20px;">')
+      // Estilizar li dentro do bloco
+      content = content.replace(/<li(?![^>]*style=)([^>]*)>/gi,
+        '<li$1 style="margin:4px 0;color:#2d3748;font-size:0.93em;line-height:1.5;">')
+      return `${openDiv}${content}${closeDiv}`
+    }
+  )
+
+  return html
+}
+
+/**
  * Aplica estilos inline em cada elemento HTML.
  * Necessario porque o sistema destino sanitiza removendo <style>.
  */
@@ -199,7 +469,7 @@ function applyInlineStyles(html) {
   const S = {
     table: 'border-collapse:collapse;width:100%;margin:20px 0;font-size:0.90em;border:1px solid #ddd;',
     thData: 'padding:14px 16px;text-align:left;vertical-align:top;border:1px solid #e8e8e8;background-color:#fff;color:#333;',
-    thHeader: 'padding:14px 16px;text-align:center;vertical-align:middle;border:1px solid #34495e;background-color:#2c3e50;color:#fff;font-weight:600;font-size:0.88em;',
+    thHeader: `padding:14px 16px;text-align:center;vertical-align:middle;border:1px solid rgba(255,255,255,0.2);background-color:${HEADER_COLOR};color:#fff;font-weight:600;font-size:0.88em;`,
     thStatus: 'padding:14px 16px;text-align:center;vertical-align:middle;border:1px solid #e8e8e8;background-color:#fff;color:#333;',
     img: 'max-width:180px;height:auto;margin:8px 0;border-radius:4px;border:1px solid #ddd;box-shadow:0 1px 4px rgba(0,0,0,0.08);cursor:pointer;',
     p: 'margin:6px 0;color:#555;font-size:0.97em;',
@@ -234,7 +504,7 @@ function applyInlineStyles(html) {
     styled = styled.replace(/<p(?:\s+style="[^"]*")?>/gi, '<p style="margin:6px 0;color:#fff;font-size:0.92em;">')
     styled = styled.replace(/<strong(?:\s+style="[^"]*")?>/gi, '<strong style="color:#fff;">')
     styled = styled.replace(/<a(?:\s+style="[^"]*")?\s/gi, '<a style="color:#7ec8e3;text-decoration:none;" ')
-    return `<tr style="background-color:#2c3e50;">${styled}</tr>`
+    return `<tr style="background-color:${HEADER_COLOR};">${styled}</tr>`
   })
 
   // Data row cells - aplicar estilo apenas em th/td que NAO tem style ainda
@@ -268,6 +538,9 @@ function applyInlineStyles(html) {
   // Strong
   html = html.replace(/<strong(?!\s+style)>/gi, `<strong style="${S.strong}">`)
 
+  // Aplicar estilos nos blocos de lista coloridos
+  html = applyListBlockStyles(html)
+
   // Remover classes (nao necessarias com inline styles)
   html = html.replace(/ class="[^"]*"/gi, '')
 
@@ -299,6 +572,9 @@ async function convertFile(inputPath) {
 
   // Processar tabelas: marcar headers + aplicar badges de status
   let processedContent = processAllTables(result.value)
+
+  // Processar blocos de lista fora de tabelas — cards coloridos com borda lateral (apenas .docx)
+  processedContent = processListBlocksDocx(processedContent)
 
   // Converter o primeiro paragrafo (titulo do documento) em H1
   processedContent = processedContent.replace(

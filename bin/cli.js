@@ -81,7 +81,23 @@ function install() {
     }
   }
 
-  // 4. Copiar README na pasta Convert-html
+  // 4. Copiar steering do Kiro
+  const steeringDir = path.join(cwd, '.kiro', 'steering')
+  if (!fs.existsSync(steeringDir)) fs.mkdirSync(steeringDir, { recursive: true })
+
+  const steeringSrc = path.join(templatesDir, 'steering')
+  const steeringFiles = fs.readdirSync(steeringSrc)
+  for (const file of steeringFiles) {
+    const dest = path.join(steeringDir, file)
+    if (fs.existsSync(dest)) {
+      log(`• .kiro/steering/${file} já existe (não sobrescrito)`, 'yellow')
+    } else {
+      fs.copyFileSync(path.join(steeringSrc, file), dest)
+      log(`✓ .kiro/steering/${file} instalado`, 'green')
+    }
+  }
+
+  // 5. Copiar README na pasta Convert-html
   const readmeSrc = path.join(templatesDir, 'README.md')
   const readmeDest = path.join(convertDir, 'README.md')
   if (!fs.existsSync(readmeDest)) {
@@ -91,7 +107,7 @@ function install() {
     log('• Convert-html/README.md já existe', 'yellow')
   }
 
-  // 5. Instalar mammoth e marked como dependências
+  // 6. Instalar mammoth e marked como dependências
   log('\n📦 Instalando dependências (mammoth + marked)...', 'blue')
   const { execSync } = require('child_process')
   try {
@@ -109,49 +125,6 @@ function install() {
   log('  1. Coloque os .docx ou .md em Convert-html/')
   log('  2. No Kiro: ative #qa-html-converter e digite /QAhtml')
   log('  3. Ou rode: node scripts/convert-all-docx.js\n')
-}
-
-function update() {
-  log('\n╔══════════════════════════════════════════╗', 'blue')
-  log('║   QA Convert to HTML - Atualizador       ║', 'blue')
-  log('╚══════════════════════════════════════════╝\n', 'blue')
-
-  const templatesDir = path.join(__dirname, '..', 'templates')
-
-  // 1. Atualizar scripts (sobrescreve)
-  const scriptsDir = path.join(cwd, 'scripts')
-  if (!fs.existsSync(scriptsDir)) fs.mkdirSync(scriptsDir, { recursive: true })
-
-  const scriptsSrc = path.join(templatesDir, 'scripts')
-  const scriptFiles = fs.readdirSync(scriptsSrc)
-  for (const file of scriptFiles) {
-    fs.copyFileSync(path.join(scriptsSrc, file), path.join(scriptsDir, file))
-    log(`✓ scripts/${file} atualizado`, 'green')
-  }
-
-  // 2. Atualizar skill do Kiro (sobrescreve)
-  const skillDir = path.join(cwd, '.kiro', 'skills', 'qa-html-converter')
-  if (!fs.existsSync(skillDir)) fs.mkdirSync(skillDir, { recursive: true })
-
-  const skillSrc = path.join(templatesDir, 'skill')
-  const skillFiles = fs.readdirSync(skillSrc)
-  for (const file of skillFiles) {
-    fs.copyFileSync(path.join(skillSrc, file), path.join(skillDir, file))
-    log(`✓ .kiro/skills/qa-html-converter/${file} atualizado`, 'green')
-  }
-
-  // 3. Atualizar README na pasta Convert-html (sobrescreve)
-  const convertDir = path.join(cwd, 'Convert-html')
-  if (!fs.existsSync(convertDir)) fs.mkdirSync(convertDir, { recursive: true })
-  const readmeSrc = path.join(templatesDir, 'README.md')
-  fs.copyFileSync(readmeSrc, path.join(convertDir, 'README.md'))
-  log('✓ Convert-html/README.md atualizado', 'green')
-
-  // Resumo
-  log('\n╔══════════════════════════════════════════╗', 'green')
-  log('║   Atualização concluída!                 ║', 'green')
-  log('╚══════════════════════════════════════════╝', 'green')
-  log('\nTodos os scripts e skills foram atualizados para a versão mais recente.\n')
 }
 
 function convert() {
@@ -190,9 +163,6 @@ switch (command) {
   case 'install':
     install()
     break
-  case 'update':
-    update()
-    break
   case 'convert':
     convert()
     break
@@ -204,7 +174,6 @@ switch (command) {
     log('─────────────────────────────')
     log('\nComandos disponíveis:')
     log('  npx qa-convert-to-html install   → Instala scripts, skills e pastas')
-    log('  npx qa-convert-to-html update    → Atualiza scripts e skills (sobrescreve)')
     log('  npx qa-convert-to-html convert   → Converte todos os .docx e .md')
     log('  npx qa-convert-to-html validate  → Valida os HTMLs gerados\n')
     break

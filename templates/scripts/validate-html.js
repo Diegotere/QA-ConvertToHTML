@@ -34,8 +34,10 @@ for (const file of files) {
     hasErrors = true
   }
 
-  // 2. Verificar se header-row existe (class ou inline background)
-  const headerRows = (html.match(/header-row|background-color:#2c3e50/g) || []).length
+  // 2. Verificar se header-row existe (class ou inline background com cor de header)
+  // Detecta headers por: classe header-row, ou background-color com cores tipicas de header
+  // Cores comuns: #2c3e50, #2d3748, #1a365d, #3182ce, #1a1a1a
+  const headerRows = (html.match(/header-row|background-color:#(?:2c3e50|2d3748|1a365d|3182ce|1a1a1a)/g) || []).length
   console.log(`\nHeader rows: ${headerRows}`)
   if (headerRows === 0) {
     console.log('  ERRO: Nenhuma header-row encontrada!')
