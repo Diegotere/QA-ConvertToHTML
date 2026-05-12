@@ -16,6 +16,10 @@
   ],
   "author": "Diegotere",
   "license": "MIT",
+  "peerDependencies": {
+    "mammoth": "1.8.0",
+    "marked": "15.0.4"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/Diegotere/QA-ConvertToHTML.git"

@@ -107,14 +107,14 @@ function install() {
     log('• Convert-html/README.md já existe', 'yellow')
   }
 
-  // 6. Instalar mammoth e marked como dependências
+  // 6. Instalar mammoth e marked como dependências (versões fixas — A.8.30)
   log('\n📦 Instalando dependências (mammoth + marked)...', 'blue')
-  const { execSync } = require('child_process')
+  const { execFileSync } = require('child_process')
   try {
-    execSync('npm install mammoth marked --save-dev', { cwd, stdio: 'pipe' })
-    log('✓ mammoth e marked instalados', 'green')
+    execFileSync('npm', ['install', 'mammoth@1.8.0', 'marked@15.0.4', '--save-dev'], { cwd, stdio: 'pipe', shell: true })
+    log('✓ mammoth@1.8.0 e marked@15.0.4 instalados', 'green')
   } catch (e) {
-    log('⚠ Falha ao instalar dependências. Rode manualmente: npm install mammoth marked', 'red')
+    log('⚠ Falha ao instalar dependências. Rode manualmente: npm install mammoth@1.8.0 marked@15.0.4 --save-dev', 'red')
   }
 
   // Resumo
@@ -134,9 +134,9 @@ function convert() {
     log('✗ Script não encontrado. Rode primeiro: npx qa-convert-to-html install', 'red')
     process.exit(1)
   }
-  const { execSync } = require('child_process')
+  const { execFileSync } = require('child_process')
   try {
-    execSync(`node "${scriptPath}"`, { cwd, stdio: 'inherit' })
+    execFileSync(process.execPath, [scriptPath], { cwd, stdio: 'inherit' })
   } catch (e) {
     log('✗ Erro na conversão', 'red')
     process.exit(1)
@@ -150,9 +150,9 @@ function validate() {
     log('✗ Script de validação não encontrado.', 'red')
     process.exit(1)
   }
-  const { execSync } = require('child_process')
+  const { execFileSync } = require('child_process')
   try {
-    execSync(`node "${scriptPath}"`, { cwd, stdio: 'inherit' })
+    execFileSync(process.execPath, [scriptPath], { cwd, stdio: 'inherit' })
   } catch (e) {
     process.exit(1)
   }

@@ -17,19 +17,40 @@ Guiar a execução de pré-análises de processos de erro abertos pelo QA no Pro
 O QA fornecerá os dados do processo no seguinte padrão de abertura:
 
 ```
+PROCESSO BIMER
+Processo duplicado de [XXXXXXXXXX]
+
 1. DESCRIÇÃO DA SITUAÇÃO E ATUAL IMPACTO:
-   [Detalhe o ocorrido e se relevante informe o comportamento que era esperado.]
+(Detalhe o ocorrido e informe o comportamento que era esperado)
 
 2. PASSO A PASSO PARA SIMULAÇÃO:
-   [Detalhe os passos necessários para reproduzir a situação.]
+(Detalhe os passos necessários para reproduzir a situação)
 
 3. CONEXÃO COM A BASE QUE POSSUI A SIMULAÇÃO ACIMA:
-   ( ) Link: [Cole o link com a base ou logs]
-   ( ) Base hospedada - Informar os dados:
-   SERVER NAME=
-   DATABASE NAME=
-   USUÁRIO=
-   SENHA=
+( ) Link: (Cole o link com a base ou logs)
+( ) Base hospedada - Informar os dados:
+SERVER NAME=
+DATABASE NAME=
+USUÁRIO=
+SENHA=
+
+4. PARA BASE DE CLIENTE, INFORME O PROTOCOLO DE CONTROLE DE BASE DE DADOS:
+Protocolo: [XXXXXXXXXX] - Enviar para o usuário DSNBIMER.
+
+5. EXISTE PALIATIVO? Sim ( ) ou Não ( )
+Se sim, qual?
+
+6. INFORMAÇÕES TÉCNICAS (Anexe logs, prints da tela com a situação, etc)
+6.1 - Informe a última versão liberada que foi testada:
+6.2 - Informe a versão utilizada pelo cliente:
+6.3 - Sistema operacional (se aplicável):
+6.4 - Para módulos Web, informe o navegador e a versão, além do dispositivo (modelo de tablet/celular, se aplicável):
+7. NECESSITOU DE CONSULTA COM O IF? Sim ( ) ou Não ( )
+Se sim, informe o protocolo: [XXXXXXXXXX]
+
+8. PESSOA DE CONTATO DO PROCESSO:
+
+9. AUTORIZADO POR:
 ```
 
 ### 2. Identificar o Sistema
@@ -231,6 +252,26 @@ Quando o cenário envolve **configurações que o usuário ativou/desativou**, i
 - Entenda o que cada uma faz (consulte o código que a consome)
 - Verifique se o comportamento observado é o esperado para aquela combinação de configurações
 - Pergunte: "Se o usuário mudar essa configuração, o comportamento muda conforme esperado?"
+
+### 6. Validação de Caminhos e Nomenclaturas
+
+O processo de abertura é escrito pelo suporte com base no relato do cliente. **Caminhos de menu, nomes de telas e nomenclaturas podem estar errados ou desatualizados.** O parecer final NÃO deve replicar caminhos incorretos.
+
+**REGRA:** Antes de incluir qualquer caminho de navegação no parecer (ex: "Configurações > Modelos e Cenários"), **valide se o caminho existe** consultando:
+- Rotas do frontend (arquivos de rotas, constantes de menu)
+- MegaMenu (scripts SQL de rotas, MCP bimer-database)
+- Código-fonte (nomes reais de telas, views, componentes)
+
+**Se o caminho informado no processo estiver errado:**
+- Corrija para o caminho real no parecer
+- NÃO replique o erro do processo de abertura
+- Se não conseguir determinar o caminho correto, use uma descrição genérica (ex: "na tela de modelos de impressão")
+
+**Exemplos comuns de erros em processos:**
+- "Configurações/Geral > Modelos e Cenários" → verificar se o caminho real é outro
+- Nomes de módulos que mudaram entre versões
+- Caminhos do Desktop usados para descrever funcionalidade Web (e vice-versa)
+- Nomenclaturas internas (código) confundidas com nomes de tela visíveis ao usuário
 
 ---
 

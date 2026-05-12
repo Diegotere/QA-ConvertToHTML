@@ -15,11 +15,19 @@ cmd /c "node -e \"try{require('mammoth');console.log('OK')}catch(e){console.log(
 - Se retornar "INSTALAR": rodar `cmd /c "npm install mammoth"` na raiz do workspace
 - Se retornar "OK": prosseguir
 
+Verificar também o `marked` (necessário para .md):
+```bash
+cmd /c "node -e \"try{require('marked');console.log('OK')}catch(e){console.log('INSTALAR')}\""
+```
+- Se retornar "INSTALAR": rodar `cmd /c "npm install marked"` na raiz do workspace
+
 ### 2. Verificar pasta de entrada
 - Verificar se a pasta `Convert-html/` existe na raiz do workspace
-- Se não existir: criar a pasta e informar ao usuário para colocar os .docx lá
-- Se existir: verificar se há arquivos .docx dentro
-- Se não houver .docx: informar ao usuário para colocar os arquivos e aguardar
+- Se não existir: criar a pasta e informar ao usuário para colocar os arquivos lá
+- Se existir: verificar se há arquivos .docx ou .md dentro (excluir README.md da contagem)
+- Se não houver .docx nem .md: informar ao usuário para colocar os arquivos e aguardar
+- **Formatos suportados:** `.docx` (via mammoth) e `.md` (via marked)
+- **Pré-análises (.md):** Arquivos que começam com `# Pré-Análise` são automaticamente convertidos com template corporativo (cards, tabelas estilizadas, badges de status)
 
 ### 3. Perguntar cor do cabeçalho
 Antes de converter, perguntar ao usuário:
@@ -30,9 +38,14 @@ Opções sugeridas: Cinza escuro (#2d3748), Azul escuro (#1a365d), Azul (#3182ce
 Só prosseguir após o usuário definir. Aplicar a cor escolhida no script antes de rodar.
 
 ### 4. Converter
+Passar a cor escolhida como argumento:
 ```bash
-cmd /c "node scripts/convert-all-docx.js"
+cmd /c "node scripts/convert-all-docx.js --header-color=#COR_ESCOLHIDA"
 ```
+Substituir `#COR_ESCOLHIDA` pela cor que o usuário definiu no passo 3.
+
+O script converte automaticamente todos os `.docx` e `.md` encontrados na pasta (exceto README.md).
+Arquivos `.md` que começam com `# Pré-Análise` recebem template corporativo automaticamente.
 
 ### 5. Validar
 ```bash

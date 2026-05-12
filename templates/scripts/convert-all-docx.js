@@ -26,8 +26,24 @@ const DIR = path.resolve(__dirname, '..', 'Convert-html')
 // Cor do cabecalho pode ser passada como argumento: node convert-all-docx.js --header-color=#1a365d
 const HEADER_COLOR = (function() {
   const arg = process.argv.find(a => a.startsWith('--header-color='))
-  return arg ? arg.split('=')[1] : '#2c3e50'
+  const raw = arg ? arg.split('=')[1] : '#2c3e50'
+  // Validar formato hexadecimal para prevenir CSS injection (A.8.28)
+  const COLOR_REGEX = /^#[0-9a-fA-F]{3,8}$/
+  return COLOR_REGEX.test(raw) ? raw : '#2c3e50'
 })()
+
+/**
+ * Escapa caracteres especiais para contexto HTML.
+ * Previne XSS quando nomes de arquivo sao inseridos em tags HTML (A.8.28).
+ */
+function escapeHtml(str) {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
 
 /**
  * Identifica rows de cabecalho e aplica classe CSS.
@@ -587,7 +603,7 @@ async function convertFile(inputPath) {
   // Aplicar estilos inline em cada elemento (sistema destino remove <style>)
   processedContent = applyInlineStyles(processedContent)
 
-  const title = path.basename(inputPath, '.docx')
+  const title = escapeHtml(path.basename(inputPath, '.docx'))
   const html = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -610,6 +626,258 @@ ${processedContent}
   }
 }
 
+/**
+ * Detecta se um arquivo .md e uma pre-analise pelo titulo.
+ */
+function isPreAnaliseMd(mdContent) {
+  return /^#\s*Pré-Análise/m.test(mdContent)
+}
+
+/**
+ * Escapa HTML em texto plano.
+ */
+function escapeHtmlText(text) {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+/**
+ * Converte backticks inline (`code`) em <code> estilizado.
+ */
+function processInlineCode(text) {
+  return text.replace(/`([^`]+)`/g,
+    '<code style="background:#edf2f7;color:#2d3748;padding:2px 6px;border-radius:3px;font-size:0.88em;font-family:Consolas,monospace;">$1</code>')
+}
+
+/**
+ * Converte **bold** em <strong>.
+ */
+function processInlineBold(text) {
+  return text.replace(/\*\*([^*]+)\*\*/g, '<strong style="color:#2c3e50;">$1</strong>')
+}
+
+/**
+ * Processa formatacao inline (code + bold).
+ */
+function processInlineFormatting(text) {
+  let result = processInlineCode(text)
+  result = processInlineBold(result)
+  return result
+}
+
+/**
+ * Converte um .md de pre-analise no formato corporativo com cards e tabelas.
+ */
+function convertPreAnaliseMdToHtml(mdContent, headerColor) {
+  const lines = mdContent.split('\n')
+  
+  let titulo = 'Pré-Análise — Procedente'
+  const tituloMatch = lines[0]?.match(/^#\s*(.+)/)
+  if (tituloMatch) titulo = tituloMatch[1].trim()
+
+  const sections = []
+  let currentSection = null
+
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i]
+    const sectionMatch = line.match(/^(\d+)\.\s*(.*)/)
+    
+    if (sectionMatch) {
+      if (currentSection) sections.push(currentSection)
+      currentSection = { num: parseInt(sectionMatch[1]), title: sectionMatch[2].trim(), lines: [] }
+    } else if (currentSection) {
+      currentSection.lines.push(line)
+    }
+  }
+  if (currentSection) sections.push(currentSection)
+
+  let confirmacao = ''
+  let versaoInfo = ''
+  let checklistItems = []
+  let simulacaoItems = []
+  let sugestaoTexto = ''
+  let sugestaoArquivos = []
+  let sugestaoHipotese = ''
+  let baseInfo = []
+
+  for (const sec of sections) {
+    const content = sec.lines.join('\n').trim()
+
+    switch (sec.num) {
+      case 1:
+        confirmacao = sec.title || content
+        break
+      case 2: {
+        const versaoText = sec.title.replace(/^Pré-análise realizada nas seguintes versões:\s*/i, '').trim()
+        versaoInfo = versaoText || content.split('\n')[0]?.trim() || ''
+        break
+      }
+      case 3: {
+        const items = content.match(/- \[[ x]\] .+/g) || []
+        checklistItems = items.map(item => item.replace(/^- \[[ x]\] /, '').trim())
+        break
+      }
+      case 4: {
+        const items = content.match(/^\s*- .+/gm) || []
+        simulacaoItems = items.map(item => item.replace(/^\s*- /, '').trim())
+        break
+      }
+      case 5: {
+        const contentLines = content.split('\n')
+        let textoLines = []
+        let arquivoLines = []
+        let hipoteseLines = []
+        let mode = 'texto'
+
+        for (const cl of contentLines) {
+          const trimmed = cl.trim()
+          if (/^Arquivos envolvidos/i.test(trimmed)) {
+            mode = 'arquivos'
+            continue
+          }
+          if (/^Hip[oó]tese principal/i.test(trimmed)) {
+            mode = 'hipotese'
+            hipoteseLines.push(trimmed.replace(/^Hip[oó]tese principal:\s*/i, ''))
+            continue
+          }
+          if (mode === 'texto') {
+            textoLines.push(cl)
+          } else if (mode === 'arquivos') {
+            if (/^\s*- /.test(cl)) {
+              const parts = cl.replace(/^\s*- /, '').split(' — ')
+              arquivoLines.push({ arquivo: parts[0]?.trim() || '', descricao: parts[1]?.trim() || '' })
+            }
+          } else if (mode === 'hipotese') {
+            hipoteseLines.push(trimmed)
+          }
+        }
+
+        sugestaoTexto = textoLines.join('\n').trim()
+        sugestaoArquivos = arquivoLines
+        sugestaoHipotese = hipoteseLines.join(' ').trim()
+        break
+      }
+      case 6: {
+        const items = content.split('\n').filter(l => l.trim())
+        baseInfo = items.map(l => l.replace(/^\s*- \[[ x]\] /, '').trim()).filter(Boolean)
+        break
+      }
+    }
+  }
+
+  let appName = 'Bimer UP'
+  let appVersao = ''
+  let appData = ''
+  if (versaoInfo) {
+    const parts = versaoInfo.split(' - ')
+    if (parts.length >= 3) {
+      appName = parts[0].trim()
+      appVersao = parts[1].trim()
+      appData = parts[2].trim()
+    } else {
+      appVersao = versaoInfo
+    }
+  }
+
+  let html = ''
+
+  html += `<h1 style="color:#1f3c5a;border-bottom:4px solid ${headerColor};padding-bottom:12px;margin-bottom:8px;font-size:1.6em;">${escapeHtmlText(titulo)}</h1>\n`
+
+  html += `<div style="display:flex;align-items:center;gap:12px;margin-bottom:30px;">
+  <span style="background:#e74c3c;color:#fff;padding:6px 18px;border-radius:20px;font-weight:600;font-size:0.9em;">Procedente</span>
+  <span style="color:#555;font-size:0.9em;">${escapeHtmlText(confirmacao)}</span>
+</div>\n`
+
+  html += `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:20px;margin-bottom:25px;">
+  <table style="width:100%;border-collapse:collapse;">
+    <tr><td style="padding:6px 12px;font-weight:600;color:#4a5568;width:200px;">Aplicação:</td><td style="padding:6px 12px;color:#2d3748;">${escapeHtmlText(appName)}</td></tr>
+    <tr><td style="padding:6px 12px;font-weight:600;color:#4a5568;">Versão analisada:</td><td style="padding:6px 12px;color:#2d3748;">${escapeHtmlText(appVersao)}</td></tr>
+    <tr><td style="padding:6px 12px;font-weight:600;color:#4a5568;">Data da análise:</td><td style="padding:6px 12px;color:#2d3748;">${escapeHtmlText(appData)}</td></tr>
+  </table>
+</div>\n`
+
+  if (checklistItems.length > 0) {
+    html += `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:20px;margin-bottom:25px;">
+  <h3 style="color:#1f3c5a;margin-top:0;margin-bottom:12px;font-size:1.05em;">Checklist</h3>
+  <table style="width:100%;border-collapse:collapse;">\n`
+    for (const item of checklistItems) {
+      html += `    <tr><td style="padding:5px 8px;color:#4a5568;">☐ ${escapeHtmlText(item)}</td></tr>\n`
+    }
+    html += `  </table>\n</div>\n`
+  }
+
+  if (simulacaoItems.length > 0) {
+    html += `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:20px;margin-bottom:25px;">
+  <h3 style="color:#1f3c5a;margin-top:0;margin-bottom:12px;font-size:1.05em;">Informações Adicionais para Simulação</h3>
+  <table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="background:${headerColor};"><th style="padding:10px 12px;color:#fff;text-align:left;font-size:0.9em;border-radius:4px 0 0 0;width:60px;">Passo</th><th style="padding:10px 12px;color:#fff;text-align:left;font-size:0.9em;border-radius:0 4px 0 0;">Ação</th></tr></thead>
+    <tbody>\n`
+    simulacaoItems.forEach((item, idx) => {
+      const bg = idx % 2 === 1 ? 'background:#f8fafc;' : ''
+      html += `      <tr style="border-bottom:1px solid #e2e8f0;${bg}"><td style="padding:10px 12px;font-weight:600;color:#4a5568;vertical-align:top;">${idx + 1}</td><td style="padding:10px 12px;color:#2d3748;">${processInlineFormatting(escapeHtmlText(item))}</td></tr>\n`
+    })
+    html += `    </tbody>\n  </table>\n</div>\n`
+  }
+
+  if (sugestaoTexto || sugestaoArquivos.length > 0 || sugestaoHipotese) {
+    html += `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:20px;margin-bottom:25px;">
+  <h3 style="color:#1f3c5a;margin-top:0;margin-bottom:12px;font-size:1.05em;">Sugestão de Como Deveria Funcionar</h3>\n`
+
+    if (sugestaoTexto) {
+      const paragraphs = sugestaoTexto.split(/\n\s*\n/).filter(Boolean)
+      for (const p of paragraphs) {
+        html += `  <p style="color:#2d3748;margin-bottom:15px;">${processInlineFormatting(escapeHtmlText(p.replace(/\n/g, ' ').trim()))}</p>\n`
+      }
+    }
+
+    if (sugestaoHipotese) {
+      html += `  <div style="background:#fffbeb;border:1px solid #f59e0b;border-radius:6px;padding:15px;margin-top:15px;">
+    <p style="color:#92400e;margin:0;font-weight:600;">Hipótese principal:</p>
+    <p style="color:#78350f;margin:8px 0 0 0;">${processInlineFormatting(escapeHtmlText(sugestaoHipotese))}</p>
+  </div>\n`
+    }
+
+    if (sugestaoArquivos.length > 0) {
+      html += `  <h4 style="color:#4a5568;margin-top:20px;margin-bottom:10px;font-size:0.95em;">Arquivos Envolvidos</h4>
+  <table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="background:${headerColor};"><th style="padding:10px 12px;color:#fff;text-align:left;font-size:0.9em;border-radius:4px 0 0 0;">Arquivo</th><th style="padding:10px 12px;color:#fff;text-align:left;font-size:0.9em;border-radius:0 4px 0 0;">Função</th></tr></thead>
+    <tbody>\n`
+      sugestaoArquivos.forEach((item, idx) => {
+        const bg = idx % 2 === 1 ? 'background:#f8fafc;' : ''
+        const fileName = item.arquivo.replace(/`/g, '').split('/').pop() || item.arquivo.replace(/`/g, '')
+        html += `      <tr style="border-bottom:1px solid #e2e8f0;${bg}"><td style="padding:8px 12px;color:#2d3748;font-size:0.88em;"><code style="background:#edf2f7;padding:2px 4px;border-radius:3px;">${escapeHtmlText(fileName)}</code></td><td style="padding:8px 12px;color:#4a5568;">${processInlineFormatting(escapeHtmlText(item.descricao))}</td></tr>\n`
+      })
+      html += `    </tbody>\n  </table>\n`
+    }
+
+    html += `</div>\n`
+  }
+
+  if (baseInfo.length > 0) {
+    html += `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:20px;margin-bottom:20px;">
+  <h3 style="color:#1f3c5a;margin-top:0;margin-bottom:12px;font-size:1.05em;">Informações da Base de Dados</h3>
+  <table style="width:100%;border-collapse:collapse;">\n`
+    for (const item of baseInfo) {
+      const kvMatch = item.match(/^([A-Z][A-Z_ ]+)=(.*)$/i)
+      if (kvMatch) {
+        html += `    <tr><td style="padding:6px 12px;font-weight:600;color:#4a5568;width:180px;">${escapeHtmlText(kvMatch[1].trim())}:</td><td style="padding:6px 12px;color:#2d3748;">${escapeHtmlText(kvMatch[2].trim())}</td></tr>\n`
+      } else {
+        html += `    <tr><td colspan="2" style="padding:6px 12px;color:#2d3748;">${escapeHtmlText(item)}</td></tr>\n`
+      }
+    }
+    html += `  </table>\n</div>\n`
+  }
+
+  html += `<div style="text-align:center;padding-top:20px;border-top:1px solid #e2e8f0;margin-top:30px;">
+  <p style="color:#a0aec0;font-size:0.85em;margin:0;">Pré-análise gerada automaticamente — Desenvolvimento DSN</p>
+</div>\n`
+
+  return html
+}
+
 async function convertMdFile(inputPath) {
   if (!marked) {
     console.error('  ERRO: pacote "marked" nao instalado. Rode: npm install marked')
@@ -619,27 +887,33 @@ async function convertMdFile(inputPath) {
   const outputPath = inputPath.replace(/\.md$/i, '.html')
   const mdContent = fs.readFileSync(inputPath, 'utf8')
 
-  // Converter Markdown para HTML
-  let htmlContent = marked.parse(mdContent)
+  let htmlContent
 
-  // Processar tabelas (status badges)
-  htmlContent = processAllTables(htmlContent)
+  // Detectar se e uma pre-analise e usar template corporativo
+  if (isPreAnaliseMd(mdContent)) {
+    htmlContent = convertPreAnaliseMdToHtml(mdContent, HEADER_COLOR)
+  } else {
+    // Converter Markdown para HTML (generico)
+    htmlContent = marked.parse(mdContent)
 
-  // Converter primeiro h1 ou paragrafo em titulo estilizado
-  // Se o markdown ja gerou <h1>, manter; senao converter primeiro <p>
-  if (!/<h1/.test(htmlContent)) {
-    htmlContent = htmlContent.replace(
-      /^(<p[^>]*>)([\s\S]*?)(<\/p>)/i,
-      function(match, open, content, close) {
-        return `<h1>${content}</h1>`
-      }
-    )
+    // Processar tabelas (status badges)
+    htmlContent = processAllTables(htmlContent)
+
+    // Converter primeiro h1 ou paragrafo em titulo estilizado
+    if (!/<h1/.test(htmlContent)) {
+      htmlContent = htmlContent.replace(
+        /^(<p[^>]*>)([\s\S]*?)(<\/p>)/i,
+        function(match, open, content, close) {
+          return `<h1>${content}</h1>`
+        }
+      )
+    }
+
+    // Aplicar estilos inline
+    htmlContent = applyInlineStyles(htmlContent)
   }
 
-  // Aplicar estilos inline
-  htmlContent = applyInlineStyles(htmlContent)
-
-  const title = path.basename(inputPath, '.md')
+  const title = escapeHtml(path.basename(inputPath, '.md'))
   const html = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
