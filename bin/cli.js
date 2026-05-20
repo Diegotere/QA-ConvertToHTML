@@ -97,7 +97,15 @@ function install() {
     }
   }
 
-  // 5. Copiar README na pasta Convert-html
+  // 5. Copiar docs do Kiro
+  const docsDir = path.join(cwd, '.kiro', 'docs')
+  const docsSrc = path.join(templatesDir, 'docs')
+  if (fs.existsSync(docsSrc)) {
+    copyDir(docsSrc, docsDir)
+    log('✓ .kiro/docs/ instalado/atualizado', 'green')
+  }
+
+  // 6. Copiar README na pasta Convert-html
   const readmeSrc = path.join(templatesDir, 'README.md')
   const readmeDest = path.join(convertDir, 'README.md')
   if (!fs.existsSync(readmeDest)) {
@@ -107,7 +115,7 @@ function install() {
     log('• Convert-html/README.md já existe', 'yellow')
   }
 
-  // 6. Instalar mammoth e marked como dependências (versões fixas — A.8.30)
+  // 7. Instalar mammoth e marked como dependências (versões fixas — A.8.30)
   log('\n📦 Instalando dependências (mammoth + marked)...', 'blue')
   const { execFileSync } = require('child_process')
   try {

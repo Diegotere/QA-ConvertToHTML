@@ -6,7 +6,7 @@ inclusion: manual
 
 ## Objetivo
 
-Guiar a execução de pré-análises de processos de erro abertos pelo QA no Projects. O Kiro deve consultar MCPs, código-fonte e banco de dados conforme necessário para investigar o problema reportado e emitir um parecer objetivo e amigável.
+Guiar a execução de pré-análises de processos de erro abertos pelo suporte no Projects. O Kiro deve consultar MCPs, código-fonte e banco de dados conforme necessário para investigar o problema reportado e emitir um parecer objetivo e amigável.
 
 ---
 
@@ -14,7 +14,7 @@ Guiar a execução de pré-análises de processos de erro abertos pelo QA no Pro
 
 ### 1. Receber o Processo
 
-O QA fornecerá os dados do processo no seguinte padrão de abertura:
+O QA fornecerá os dados do processo no seguinte padrão de abertura ou outro padrão que contenha o passo a passo com o suposto erro:
 
 ```
 PROCESSO BIMER
@@ -71,26 +71,29 @@ Só continue após a resposta.
 
 Com base no tipo de sistema identificado, utilize as ferramentas disponíveis.
 
-**Fallback sem MCP:** Caso algum MCP não esteja disponível ou não retorne resultados suficientes, utilize as ferramentas nativas do workspace (busca de arquivos, leitura de código, grep) para navegar nas pastas do projeto e localizar código-fonte relevante para a pré-análise. Explore a estrutura de diretórios, leia arquivos de código, e busque por termos relacionados ao problema reportado.
+**Fallback sem MCP:** Caso algum MCP não esteja disponível ou não retorne resultados suficientes, utilize as ferramentas nativas do workspace (busca de arquivos, leitura de código, grep) para navegar nas pastas do projeto e localizar código-fonte relevante para a pré-análise. Explore a estrutura de diretórios, leia arquivos de código, e busque por termos relacionados ao problema reportado. Use `.kiro/docs` que possui manuais dos sistemas  poderá te auxiliar nas documentações e assertividade da análise.
 
-#### Para sistema WEB:
+#### Para sistema WEB: 
+   QUANDO necessário:
 - Use os MCPs `bimer_frontend_vue2` para investigar componentes, stores, views, APIs do frontend
 - Use os MCPs `bimer_web_repositorio` para investigar controllers, services, queries, DTOs do backend
 - Use o MCP `bimer_database` para consultar esquemas, dados, procedures e regras de negócio
 - Use o MCP `bimer-source` para consultar código-fonte adicional quando necessário, geralmente não será a base do cliente, por isso pode não ter os dados reais, use mais como base de consultas de relacionamentos e regras de BD.
 
 #### Para sistema API:
+   QUANDO necessário:
 - Use os MCPs `bimer_web_repositorio` para investigar controllers, services, fluxos
 - Use o MCP `bimer_database` para consultar banco de dados
 - Use o MCP `bimer-source` para consultar código-fonte adicional quando necessário
 
 #### Para sistema Desktop:
+   QUANDO necessário:
 - Use o MCP `bimer-source` para consultar código-fonte do sistema Desktop
 - Use o MCP `bimer_database` para investigar banco de dados e regras de negócio
 
 ### 4. Avaliar Conclusão
 
-Após a investigação, avalie se foi possível chegar a uma conclusão com base nos dados fornecidos. O parecer DEVE ter um dos seguintes status:
+Após a investigação, avalie se foi possível chegar a uma conclusão com base nos dados fornecidos, se não for pode questionar ao QA se ele conseguiu simular e se tem mais dados para acrescentar. O parecer DEVE ter um dos seguintes status:
 
 ---
 
@@ -238,11 +241,12 @@ Se ambas as perspectivas estão alinhadas (a configuração existe para permitir
 ### 4. Não Confiar Cegamente no Relato
 
 O processo de abertura pode **induzir ao erro**. O suporte repassa o que o cliente disse, e o cliente pode:
-- Não entender a configuração que ele mesmo ativou
-- Confundir comportamento esperado com bug
-- Descrever o cenário de forma que parece um erro mas é uso incorreto
+- Não entender a configuração que ele mesmo ativou.
+- Confundir comportamento esperado com bug.
+- O cliente pode acreditar que porque ele quer que seja assim ele entende que é um erro, mas se o sistema foi projetado para ser desta forma e funciona bem não é um erro.
+- Descrever o cenário de forma que parece um erro mas é uso incorreto.
 
-**REGRA:** Trate o relato como hipótese a ser validada, não como verdade. Questione cada afirmação com base no código e nas configurações reais.
+**REGRA:** Trate o relato como HIPOTESE a ser validada, não como verdade. Questione cada afirmação com base no código e nas configurações reais.
 
 ### 5. Configurações Envolvidas = Sinal de Alerta
 
@@ -277,9 +281,10 @@ O processo de abertura é escrito pelo suporte com base no relato do cliente. **
 
 ## Regras Gerais
 
-1. **Tom:** Objetivo, técnico mas amigável. Evite jargões desnecessários nas conclusões voltadas ao suporte.
+1. **Tom:** Objetivo, técnico mas amigável. Evite jargões desnecessários, dados técnicos, como nomes de campos do fonte nas conclusões voltadas ao suporte.
 2. **Investigação:** Sempre tente reproduzir ou entender o cenário antes de concluir. Use os MCPs disponíveis.
 3. **Pergunte se necessário:** Se durante a análise precisar de mais contexto (módulo, tela, versão), pergunte ao usuário.
 4. **Arquivo de saída:** Apenas o status PROCEDENTE gera arquivo na pasta `Convert-html`. Os demais status são apresentados diretamente no chat.
 5. **Nome do arquivo:** Use um nome descritivo baseado no processo, ex: `pre-analise-movimento-bancario-duplicado.md`
 6. **Não invente dados:** Se não encontrou evidência suficiente, use o Status 1 (falta de informações). Nunca conclua sem base factual.
+7. **Não invente dados:** Nos processos procedentes evite induzir a programação de como executar o processo, como por exemplo "ajuste em tal unit e tal local", traga o parecer amigavel e pode montar um "bloco técnico" com o "caminho das pedras" separado com dicas da solução mas sempre enfatizando que o programador deve avaliar com criticidade sobre o ponto de ajuste.

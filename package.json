@@ -1,6 +1,6 @@
 {
   "name": "qa-convert-to-html",
-  "version": "1.4.0",
+  "version": "1.2.0",
   "description": "Converte documentos de teste QA (.docx e .md) em HTML corporativo com CSS inline, pronto para colar em sistemas que sanitizam CSS.",
   "bin": {
     "qa-convert-to-html": "./bin/cli.js"
